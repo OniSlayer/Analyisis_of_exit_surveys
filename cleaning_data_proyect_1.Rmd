@@ -13,5 +13,158 @@ jupyter:
 ---
 
 ```{python}
+# !ls ./datasets
+```
+
+# Cleaning Data Proyect
+This proyect have two different data sources: dete_survey and tafe_survey. Each one contains information about the exit surveys conducted to employeed that were about to leave.
+
+The two main questions to answer in this analysis are:
+- **Are employees who only worked for the institutes for a short period of time resigning due to some kind of dissatisfaction? What about employees who have been there longer?**
+- **Are younger employees resigning due to some kind of dissatisfaction? What about older employees?**
+
+```{python}
+#importing necessary libraries
+import pandas as pd
+import numpy as np
+```
+
+```{python}
+#reading the datasets
+dete_survey = pd.read_csv("datasets/dete_survey.csv")
+tafe_survey = pd.read_csv("datasets/tafe_survey.csv")
+```
+
+```{python}
+pd.options.display.max_columns = 150
+```
+
+```{python}
+#Head of dete
+dete_survey.head()
+```
+
+```{python}
+#first insight to dete dataset
+# there are attributes with missing values
+#there are a total of 822 entries
+dete_survey.info()
+```
+
+```{python}
+# calculating the percent of na values on each attribute
+(dete_survey.isna().sum()/822*100).sort_values(ascending = False)
+```
+
+```{python}
+#head of tafe dataset
+tafe_survey.head()
+```
+
+```{python}
+# Initial exploration of the tafe dataset
+# There are 702 entries
+# There are some missing values. This dataset have more columns
+tafe_survey.info()
+```
+
+```{python}
+# Calculating the percentage on missing values on the tafe survey
+(tafe_survey.isna().sum()/702*100).sort_values(ascending = False)
+```
+
+Both datasets have empty values (in the case of the dete dataset, some of this empty values appear as "Not Stated"). Both Datasets have a lot of columns that specify the answer to each individual question (or topic). The attributes on both datasets seems to be similar, but have different names. 
+
+```{python}
+# Rereading the dete dataset, this time identifying 'Non Stated' as NA
+dete_survey = pd.read_csv('datasets/dete_survey.csv', na_values = "Not Stated")
+```
+
+```{python}
+# Removing unecessary columns not necessary for the analysis
+dete_survey_updated = dete_survey.drop(dete_survey.columns[28:49], axis = 1) 
+tafe_survey_updated = tafe_survey.drop(tafe_survey.columns[17:66], axis = 1)
+```
+
+```{python}
+tafe_survey_updated.info()
+```
+
+```{python}
+dete_survey_updated.info()
+```
+
+```{python}
+# Looking at the new sets with only needed columns
+dete_survey_updated.head()
+```
+
+```{python}
+# Looking at the new sets with only needed columns
+tafe_survey_updated.head()
+```
+
+```{python}
+# Analyzing the unique values on the Separation Types of dete
+dete_survey_updated['SeparationType'].value_counts()
+```
+
+```{python}
+# Analyzing the unique values on the separation types of tafe 
+tafe_survey_updated['Reason for ceasing employment'].value_counts()
+```
+
+```{python}
+# Make all columns lower case, take empty spaces out and replacing spaces
+dete_survey_updated.columns = dete_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
+tafe_survey_updated.columns = tafe_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
+```
+
+```{python}
+# Renaming columns to match between them
+print(dete_survey_updated.info())
+tafe_survey_updated.rename({'Record ID': 'id', 'CESSATION YEAR': 'cease_date', 'Reason for ceasing employment': 'separationtype', 'Gender. What is your Gender?': 'gender', 'CurrentAge. Current Age': 'age',
+       'Employment Type. Employment Type': 'employment_status',
+       'Classification. Classification': 'position',
+       'LengthofServiceOverall. Overall Length of Service at Institute (in years)': 'institute_service',
+       'LengthofServiceCurrent. Length of Service at current workplace (in years)': 'role_service'}, axis = 1, inplace = True)
+print(tafe_survey_updated.info())
+```
+
+Because of the question only being directed to employees who resigned, the following analysis will only be performed on this data
+
+```{python}
+# Standarizing the resignations for the dete data sets
+dete_survey_updated['separationtype'] = dete_survey_updated['separationtype'].str.split("-").str[0]
+dete_survey_updated['separationtype'].value_counts()
+```
+
+```{python}
+# Selecting only resignations from the dete dataset
+dete_resignations = dete_survey_updated[dete_survey_updated['separationtype'] == "Resignation"].copy()
+dete_resignations.info()
+```
+
+```{python}
+# Selecting only resignations from the tafe dataset
+tafe_resignations = tafe_survey_updated[tafe_survey_updated['separationtype'] == "Resignation"].copy()
+tafe_resignations.info()
+```
+
+```{python}
+# Extracting only the year from the cease_date attribute on the dete dataset
+dete_resignations['cease_date'] =  dete_resignations['cease_date'].str.split('/').str[-1].astype("float")
+dete_resignations['cease_date'].value_counts()
+```
+
+```{python}
+tafe_resignations['cease_date'].value_counts()
+```
+
+```{python}
+dete_resignations['dete_start_date'].value_counts().sort_index()
+```
+
+```{python}
 
 ```
