@@ -115,12 +115,6 @@ tafe_survey_updated['Reason for ceasing employment'].value_counts()
 ```
 
 ```{python}
-# Make all columns lower case, take empty spaces out and replacing spaces
-dete_survey_updated.columns = dete_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
-tafe_survey_updated.columns = tafe_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
-```
-
-```{python}
 # Renaming columns to match between them
 print(dete_survey_updated.info())
 tafe_survey_updated.rename({'Record ID': 'id', 'CESSATION YEAR': 'cease_date', 'Reason for ceasing employment': 'separationtype', 'Gender. What is your Gender?': 'gender', 'CurrentAge. Current Age': 'age',
@@ -129,6 +123,12 @@ tafe_survey_updated.rename({'Record ID': 'id', 'CESSATION YEAR': 'cease_date', '
        'LengthofServiceOverall. Overall Length of Service at Institute (in years)': 'institute_service',
        'LengthofServiceCurrent. Length of Service at current workplace (in years)': 'role_service'}, axis = 1, inplace = True)
 print(tafe_survey_updated.info())
+```
+
+```{python}
+# Make all columns lower case, take empty spaces out and replacing spaces
+dete_survey_updated.columns = dete_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
+tafe_survey_updated.columns = tafe_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
 ```
 
 Because of the question only being directed to employees who resigned, the following analysis will only be performed on this data
@@ -166,5 +166,89 @@ dete_resignations['dete_start_date'].value_counts().sort_index()
 ```
 
 ```{python}
+# looking at outliers
+import seaborn as sns
+ax = sns.boxplot(x=dete_resignations['dete_start_date'])
+```
 
+```{python}
+#creating institue_servide column on dete
+dete_resignations['institute_service'] = dete_resignations['cease_date'] - dete_resignations['dete_start_date']
+```
+
+```{python}
+#creating dissatisfied column on tafe
+def convert_to_bool_dissat(string):
+    if string == '-':
+        return False
+    elif pd.isnull(string):
+        return np.nan
+    else:
+        return True
+
+tafe_resignations['dissatisfied'] =  tafe_resignations[['contributing_factors._job_dissatisfaction', 'contributing_factors._dissatisfaction']].applymap(convert_to_bool_dissat).any(1, skipna=False)
+tafe_resignations['dissatisfied'].value_counts(dropna = False)
+```
+
+```{python}
+#creating dissatisfied column on dete
+dete_resignations['dissatisfied'] = dete_resignations[['job_dissatisfaction', 'dissatisfaction_with_the_department', 'physical_work_environment',
+                   'lack_of_recognition', 'lack_of_job_security', 'work_location', 'employment_conditions', 'work_life_balance',
+                  'workload']].any(1, skipna=False)
+dete_resignations['dissatisfied'].value_counts()
+```
+
+```{python}
+# Adding columns to identify the origin to each dataset
+dete_resignations['institute'] = "DETE"
+tafe_resignations['institute'] = "TAFE"
+```
+
+```{python}
+combined = pd.concat([dete_resignations, tafe_resignations], ignore_index = True)
+
+combined.isnull().sum()
+```
+
+```{python}
+# Droping columns with more than 500 null values
+combined.notnull().sum().sort_values()
+combined_updated = combined.dropna(axis = 1, thresh = 500)
+```
+
+```{python}
+# Extracting only the digits from the institute_service column
+combined_updated['institute_service'] = combined_updated['institute_service'].astype('str').str.extract(r'(\d+)')
+combined_updated['institute_service'] = combined_updated['institute_service'].astype('float')
+combined_updated['institute_service'].value_counts()
+```
+
+```{python}
+def make_intervals(number):
+    if pd.isnull(number):
+        return np.nan
+    elif number < 3:
+        return "New"
+    elif  3<= number <= 6:
+        return "Experienced"
+    elif 7 <= number <= 10:
+        return "Established"
+    else:
+        return "Veteran"
+
+combined_updated['service_cat'] = combined_updated['institute_service'].apply(make_intervals).copy()
+```
+
+```{python}
+combined_updated['dissatisfied'].value_counts(dropna = False)
+combined_updated['dissatisfied'] = combined_updated['dissatisfied'].fillna(False)
+combined_updated['dissatisfied'].value_counts(dropna = False)
+```
+
+```{python}
+distribution_disatisfied = combined_updated.pivot_table(index='service_cat', values='dissatisfied')
+```
+
+```{python}
+distribution_disatisfied.plot(kind = 'bar')
 ```
