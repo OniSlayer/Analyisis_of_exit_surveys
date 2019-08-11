@@ -5,7 +5,7 @@ jupyter:
       extension: .Rmd
       format_name: rmarkdown
       format_version: '1.1'
-      jupytext_version: 1.1.3
+      jupytext_version: 1.2.1
   kernelspec:
     display_name: Python 3
     language: python
@@ -23,37 +23,81 @@ The two main questions to answer in this analysis are:
 - **Are employees who only worked for the institutes for a short period of time resigning due to some kind of dissatisfaction? What about employees who have been there longer?**
 - **Are younger employees resigning due to some kind of dissatisfaction? What about older employees?**
 
+
+
+## Importing necessary libraries and loading the datasets
+
 ```{python}
-#importing necessary libraries
+# importing necessary libraries
 import pandas as pd
 import numpy as np
 ```
 
 ```{python}
-#reading the datasets
+# reading the datasets
 dete_survey = pd.read_csv("datasets/dete_survey.csv")
 tafe_survey = pd.read_csv("datasets/tafe_survey.csv")
 ```
 
 ```{python}
+# Configure pandas to display all the columns of the datasets
 pd.options.display.max_columns = 150
 ```
 
+## Exploratory analysis
+
 ```{python}
-#Head of dete
+# Head of dete dataset and identifying relevant attributes
+
+# Age (categorical, comes in range)
+# Cease Date (Categorical, comes as text)
+# Dete Start Date (Comes as text)
+# SeparationType (categorical, usefull for selecting only Resignations)
+# To determine dissatisfaction with the job, the attributes 'Job dissatisfaction', 'dissatisfaction with the department',
+# 'Physical work environment', 'Lack of recognition', 'lack of job security', 'work location', 'employmet conditions',
+# 'work life balance' and 'workload' will be used. All of them are booleans (True/False)
 dete_survey.head()
 ```
 
 ```{python}
-#first insight to dete dataset
-# there are attributes with missing values
-#there are a total of 822 entries
 dete_survey.info()
 ```
 
 ```{python}
+# Head of tafe dataset and indentification of relevant attributes
+
+# LengthofServiceOverall. Overall Length of Service at Institute (in years) (Categorical, comes as a range)
+# CurrentAge (object)
+# Reason for ceasing employment (usefull for selecting only Ressignations)
+# Contributing Factors. Dissatisfaction
+# Contributing Factors. Job Dissatisfaction
+
+
+tafe_survey.head()
+```
+
+```{python}
+tafe_survey.info()
+```
+
+```{python}
+# Looking for null values and column names and types
+
+# there are attributes with missing values
+# there are a total of 822 entries
+dete_survey.info()
+```
+
+## Cleaning Data
+
+
+### Null values analysis
+
+```{python}
+# A deeper look into the null values
+
 # calculating the percent of na values on each attribute
-(dete_survey.isna().sum()/822*100).sort_values(ascending = False)
+(dete_survey.isna().sum()/(dete_survey.shape[0])*100).sort_values(ascending = False)
 ```
 
 ```{python}
