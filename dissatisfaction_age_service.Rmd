@@ -16,12 +16,17 @@ jupyter:
 # !ls ./datasets
 ```
 
-# Cleaning Data Proyect
-This proyect have two different data sources: dete_survey and tafe_survey. Each one contains information about the exit surveys conducted to employeed that were about to leave.
+# Dissatisfaction relation to age and service years of employees on public institutions
+This proyect have two different data sources: dete_survey and tafe_survey. Each one contains information about the exit surveys conducted to employees that were about to leave and worked either on the Departmente of Education, Training and Employment (DETE dataset) or on the Technical and Further Education (TAFE dataset) in Austalia. 
 
 The two main questions to answer in this analysis are:
 - **Are employees who only worked for the institutes for a short period of time resigning due to some kind of dissatisfaction? What about employees who have been there longer?**
 - **Are younger employees resigning due to some kind of dissatisfaction? What about older employees?**
+
+Variables to analyse are:
+- Age
+- Time working in the institution
+- Dissatisfaction directly related to working on this two insitutions
 
 
 
@@ -232,16 +237,20 @@ ax = sns.boxplot(x=resignations_dete['service_length'])
 ```{python}
 # Unifying the dissatisfaction and the job_dissatisfaction attributes on tafe dataset
 
-def convert_to_bool_dissat(string):
-    if string == '-':
+def update_vals(x):
+    if x == '-':
         return False
-    elif pd.isnull(string):
+    elif pd.isnull(x):
         return np.nan
     else:
         return True
 
-resignations_tafe['dissatisfied'] = resignations_tafe[['dissatisfaction', 'job_dissatisfaction']].applymap(convert_to_bool_dissat).any(1, skipna = False)
+resignations_tafe['dissatisfied'] = resignations_tafe[['dissatisfaction', 'job_dissatisfaction']].applymap(update_vals).any(1, skipna = False)
 resignations_tafe['dissatisfied'].value_counts(dropna = False)
+```
+
+```{python}
+resignations_tafe.info()
 ```
 
 ```{python}
@@ -258,6 +267,10 @@ resignations_dete['dissatisfied'] = resignations_dete[[
 ]].any(1, skipna = False)
 
 resignations_dete['dissatisfied'].value_counts(dropna = False)
+```
+
+```{python}
+resignations_dete.info()
 ```
 
 ```{python}
@@ -375,24 +388,40 @@ combined_resignations['service_length_intervals'].value_counts()
 ```
 
 ```{python}
-combined_resignations['dissatisfied'].value_counts(dropna = False)
+# Forcing the dissatisfied column to booleans
+combined_resignations['dissatisfied'] = (combined_resignations['dissatisfied'] == True)
+```
+
+## Data Analysis
+
+```{python}
+# Creating a pivot table with percentage of dissatisfied
+dissatisfied_by_service_lengt = combined_resignations.pivot_table(index = 'service_length_intervals'
+                                                                  ,values = 'dissatisfied', 
+                                                                  aggfunc='mean').sort_values(by = 'dissatisfied')
 ```
 
 ```{python}
-boli = combined_resignations['service_length_intervals'] == "New"
-combined_resignations[boli]['dissatisfied'].mean()
+# This shows that there seems to be a coorelation between the service length and the dissatisfaction
+
+dissatisfied_by_service_lengt.plot(kind = 'bar')
 ```
 
 ```{python}
-dissatisfied_by_service_lengt = combined_resignations.pivot_table(index = 'service_length_intervals',values = 'dissatisfied', aggfunc='mean')
-
-
+# Making a pivot table using age and dissatisfied
+dissatisfied_by_age = combined_resignations.pivot_table(index = 'age', values = 'dissatisfied').sort_values(by = 'dissatisfied')
+dissatisfied_by_age
 ```
 
 ```{python}
-distribution_disatisfied = combined_updated.pivot_table(index='service_cat', values='dissatisfied')
+# Ploting dissatisfaction by age
+
+# There seeems to be a clear relation between age an dissatisfaction
+dissatisfied_by_age.plot(kind = 'barh')
 ```
 
-```{python}
-distribution_disatisfied.plot(kind = 'bar')
-```
+## Conclusion
+
+There is a clear coorelation between age and dissatisfaction and also between service length and dissatisfaction.
+
+Older employees, or employees with a lot of years on the organization, **are more likely to resign due to dissatisfaction**.
