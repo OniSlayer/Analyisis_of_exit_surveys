@@ -5,7 +5,7 @@ jupyter:
       extension: .Rmd
       format_name: rmarkdown
       format_version: '1.1'
-      jupytext_version: 1.2.1
+      jupytext_version: 1.1.3
   kernelspec:
     display_name: Python 3
     language: python
@@ -50,12 +50,14 @@ pd.options.display.max_columns = 150
 # Head of dete dataset and identifying relevant attributes
 
 # Age (categorical, comes in range)
-# Cease Date (Categorical, comes as text)
-# Dete Start Date (Comes as text)
+# Cease Date (Categorical)
+# Dete Start Date (Categorical)
 # SeparationType (categorical, usefull for selecting only Resignations)
 # To determine dissatisfaction with the job, the attributes 'Job dissatisfaction', 'dissatisfaction with the department',
 # 'Physical work environment', 'Lack of recognition', 'lack of job security', 'work location', 'employmet conditions',
 # 'work life balance' and 'workload' will be used. All of them are booleans (True/False)
+
+# There are null values on the selected attributes that will be used in the analysis
 dete_survey.head()
 ```
 
@@ -67,11 +69,12 @@ dete_survey.info()
 # Head of tafe dataset and indentification of relevant attributes
 
 # LengthofServiceOverall. Overall Length of Service at Institute (in years) (Categorical, comes as a range)
-# CurrentAge (object)
+# CurrentAge (categorical)
 # Reason for ceasing employment (usefull for selecting only Ressignations)
 # Contributing Factors. Dissatisfaction
 # Contributing Factors. Job Dissatisfaction
 
+# There are null values on the selected attributes that will be used in the analysis
 
 tafe_survey.head()
 ```
@@ -81,11 +84,35 @@ tafe_survey.info()
 ```
 
 ```{python}
-# Looking for null values and column names and types
+# Selecting only the usefull attributes in the dataframes
 
-# there are attributes with missing values
-# there are a total of 822 entries
-dete_survey.info()
+selected_tafe =  tafe_survey[[
+    'LengthofServiceOverall. Overall Length of Service at Institute (in years)',
+    'CurrentAge. Current Age',
+    'Reason for ceasing employment',
+    'Contributing Factors. Dissatisfaction',
+    'Contributing Factors. Job Dissatisfaction',
+]].copy()
+
+print(selected_tafe.info())
+
+selected_dete = dete_survey[[
+    'Age',
+    'Cease Date',
+    'DETE Start Date',
+    'SeparationType',
+    'Job dissatisfaction',
+    'Dissatisfaction with the department',
+    'Physical work environment',
+    'Lack of recognition',
+    'Lack of job security',
+    'Work location',
+    'Employment conditions',
+    'Work life balance', 
+    'Workload'
+]].copy()
+
+print(selected_dete.info())
 ```
 
 ## Cleaning Data
@@ -94,134 +121,117 @@ dete_survey.info()
 ### Null values analysis
 
 ```{python}
-# A deeper look into the null values
+# A deeper look into the null values by calculating the percent of na values on each attribute
 
-# calculating the percent of na values on each attribute
-(dete_survey.isna().sum()/(dete_survey.shape[0])*100).sort_values(ascending = False)
+# dete have the most ammount of null values at DETE Start Date, Cease Date and Age 
+
+(selected_dete.isnull().sum()/(selected_dete.shape[0])*100).sort_values(ascending = False)
 ```
 
 ```{python}
-#head of tafe dataset
-tafe_survey.head()
+# tafe have null values in all the attributes
+
+(selected_tafe.isnull().sum()/(selected_tafe.shape[0])*100).sort_values(ascending = False)
 ```
 
 ```{python}
-# Initial exploration of the tafe dataset
-# There are 702 entries
-# There are some missing values. This dataset have more columns
-tafe_survey.info()
+# Some values on the DETE dataset appear as 'Not Stated', but should be treated as null values
+
+selected_dete['DETE Start Date'].value_counts(dropna = False)
 ```
 
 ```{python}
-# Calculating the percentage on missing values on the tafe survey
-(tafe_survey.isna().sum()/702*100).sort_values(ascending = False)
+# Marking null values correctly
+
+print(selected_tafe.isnull().sum().sum())
+print(selected_dete.isnull().sum().sum())
+
+selected_dete = selected_dete.replace('Not Stated', np.NaN)
+
+print(selected_tafe.isnull().sum().sum())
+print(selected_dete.isnull().sum().sum())
+
 ```
 
-Both datasets have empty values (in the case of the dete dataset, some of this empty values appear as "Not Stated"). Both Datasets have a lot of columns that specify the answer to each individual question (or topic). The attributes on both datasets seems to be similar, but have different names. 
+### Standarizing and removing characters from column names
 
 ```{python}
-# Rereading the dete dataset, this time identifying 'Non Stated' as NA
-dete_survey = pd.read_csv('datasets/dete_survey.csv', na_values = "Not Stated")
-```
+# Standarizing names that have the same info in both data sets
 
-```{python}
-# Removing unecessary columns not necessary for the analysis
-dete_survey_updated = dete_survey.drop(dete_survey.columns[28:49], axis = 1) 
-tafe_survey_updated = tafe_survey.drop(tafe_survey.columns[17:66], axis = 1)
-```
+map_tafe = {
+    'CurrentAge. Current Age': 'age',
+    'LengthofServiceOverall. Overall Length of Service at Institute (in years)' : 'service_length',
+    'Reason for ceasing employment' : 'separation_type',
+    'Contributing Factors. Dissatisfaction' : 'dissatisfaction',
+    'Contributing Factors. Job Dissatisfaction' : 'job_dissatisfaction'
+}
 
-```{python}
-tafe_survey_updated.info()
-```
+map_dete = {
+    'SeparationType' : 'separation_type',
+}
 
-```{python}
-dete_survey_updated.info()
-```
+selected_tafe.rename(map_tafe, axis = 1, inplace = True)
+selected_dete.rename(map_dete, axis = 1, inplace = True)
 
-```{python}
-# Looking at the new sets with only needed columns
-dete_survey_updated.head()
-```
 
-```{python}
-# Looking at the new sets with only needed columns
-tafe_survey_updated.head()
-```
-
-```{python}
-# Analyzing the unique values on the Separation Types of dete
-dete_survey_updated['SeparationType'].value_counts()
+print(selected_tafe.info())
+print(selected_dete.info())
 ```
 
 ```{python}
-# Analyzing the unique values on the separation types of tafe 
-tafe_survey_updated['Reason for ceasing employment'].value_counts()
+# Removing spaces, converting to lower case and striping white spaces
+
+selected_tafe.columns = selected_tafe.columns.str.lower().str.strip().str.replace(' ', '_')
+selected_dete.columns = selected_dete.columns.str.lower().str.strip().str.replace(' ', '_')
+
+print(selected_tafe.info())
+print(selected_dete.info())
 ```
 
 ```{python}
-# Renaming columns to match between them
-print(dete_survey_updated.info())
-tafe_survey_updated.rename({'Record ID': 'id', 'CESSATION YEAR': 'cease_date', 'Reason for ceasing employment': 'separationtype', 'Gender. What is your Gender?': 'gender', 'CurrentAge. Current Age': 'age',
-       'Employment Type. Employment Type': 'employment_status',
-       'Classification. Classification': 'position',
-       'LengthofServiceOverall. Overall Length of Service at Institute (in years)': 'institute_service',
-       'LengthofServiceCurrent. Length of Service at current workplace (in years)': 'role_service'}, axis = 1, inplace = True)
-print(tafe_survey_updated.info())
+# Directing questions only adress people that resign the job, so a new dataframe with this info is created
+# for each dataset, but first is necesssary to unify resignations on the dete dataset
+
+print(selected_dete['separation_type'].value_counts())
+
+selected_dete['separation_type'] = selected_dete['separation_type'].str.split('-').str[0]
 ```
 
 ```{python}
-# Make all columns lower case, take empty spaces out and replacing spaces
-dete_survey_updated.columns = dete_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
-tafe_survey_updated.columns = tafe_survey_updated.columns.str.lower().str.strip().str.replace(' ', '_')
-```
+# Selecting only resignations from both datasets
 
-Because of the question only being directed to employees who resigned, the following analysis will only be performed on this data
-
-```{python}
-# Standarizing the resignations for the dete data sets
-dete_survey_updated['separationtype'] = dete_survey_updated['separationtype'].str.split("-").str[0]
-dete_survey_updated['separationtype'].value_counts()
+resignations_dete = selected_dete[selected_dete['separation_type'] == "Resignation"].copy()
+resignations_tafe = selected_tafe[selected_tafe['separation_type'] == "Resignation"].copy()
 ```
 
 ```{python}
-# Selecting only resignations from the dete dataset
-dete_resignations = dete_survey_updated[dete_survey_updated['separationtype'] == "Resignation"].copy()
-dete_resignations.info()
+# To create the column of service_length in the dete dataset, it's necessary to extract only the dates from the column
+# of cease date
+
+resignations_dete['cease_date'] = resignations_dete['cease_date'].str.split('/').str[-1]
 ```
 
 ```{python}
-# Selecting only resignations from the tafe dataset
-tafe_resignations = tafe_survey_updated[tafe_survey_updated['separationtype'] == "Resignation"].copy()
-tafe_resignations.info()
+# Converting the values to float 
+resignations_dete['cease_date'] = resignations_dete['cease_date'].astype('float')
+resignations_dete['dete_start_date'] = resignations_dete['dete_start_date'].astype('float')
 ```
 
 ```{python}
-# Extracting only the year from the cease_date attribute on the dete dataset
-dete_resignations['cease_date'] =  dete_resignations['cease_date'].str.split('/').str[-1].astype("float")
-dete_resignations['cease_date'].value_counts()
+# Calculating the service_length column for the dete dataset
+
+resignations_dete['service_length'] = (resignations_dete['cease_date'] - resignations_dete['dete_start_date'])
 ```
 
 ```{python}
-tafe_resignations['cease_date'].value_counts()
-```
-
-```{python}
-dete_resignations['dete_start_date'].value_counts().sort_index()
-```
-
-```{python}
-# looking at outliers
+# looking at outliers in the dete service length dataset
 import seaborn as sns
-ax = sns.boxplot(x=dete_resignations['dete_start_date'])
+ax = sns.boxplot(x=resignations_dete['service_length'])
 ```
 
 ```{python}
-#creating institue_servide column on dete
-dete_resignations['institute_service'] = dete_resignations['cease_date'] - dete_resignations['dete_start_date']
-```
+# Unifying the dissatisfaction and the job_dissatisfaction attributes on tafe dataset
 
-```{python}
-#creating dissatisfied column on tafe
 def convert_to_bool_dissat(string):
     if string == '-':
         return False
@@ -230,44 +240,124 @@ def convert_to_bool_dissat(string):
     else:
         return True
 
-tafe_resignations['dissatisfied'] =  tafe_resignations[['contributing_factors._job_dissatisfaction', 'contributing_factors._dissatisfaction']].applymap(convert_to_bool_dissat).any(1, skipna=False)
-tafe_resignations['dissatisfied'].value_counts(dropna = False)
+resignations_tafe['dissatisfied'] = resignations_tafe[['dissatisfaction', 'job_dissatisfaction']].applymap(convert_to_bool_dissat).any(1, skipna = False)
+resignations_tafe['dissatisfied'].value_counts(dropna = False)
 ```
 
 ```{python}
-#creating dissatisfied column on dete
-dete_resignations['dissatisfied'] = dete_resignations[['job_dissatisfaction', 'dissatisfaction_with_the_department', 'physical_work_environment',
-                   'lack_of_recognition', 'lack_of_job_security', 'work_location', 'employment_conditions', 'work_life_balance',
-                  'workload']].any(1, skipna=False)
-dete_resignations['dissatisfied'].value_counts()
+# Creating the dissatisfied attribute by using all variables available on the dataset
+resignations_dete['dissatisfied'] = resignations_dete[[
+    'job_dissatisfaction',
+    'dissatisfaction_with_the_department',
+    'physical_work_environment',
+    'lack_of_recognition',
+    'work_location',
+    'employment_conditions',
+    'work_life_balance',
+    'workload'
+]].any(1, skipna = False)
+
+resignations_dete['dissatisfied'].value_counts(dropna = False)
 ```
 
 ```{python}
 # Adding columns to identify the origin to each dataset
-dete_resignations['institute'] = "DETE"
-tafe_resignations['institute'] = "TAFE"
+resignations_dete["origin_dataset"] = "DETE"
+resignations_tafe["origin_dataset"] = "TAFE"
 ```
 
 ```{python}
-combined = pd.concat([dete_resignations, tafe_resignations], ignore_index = True)
+# The tafe dataset have the service_length attribute like a range
+print(resignations_tafe['service_length'].value_counts())
 
-combined.isnull().sum()
+
+# The first digit on the interval is extracted with a regex expression
+resignations_tafe['service_length'] =  resignations_tafe['service_length'].str.extract(r'(\d+)').astype('float')
+
+# Recheck the values for service_length
+print(resignations_tafe['service_length'].value_counts())
+
 ```
 
 ```{python}
-# Droping columns with more than 500 null values
-combined.notnull().sum().sort_values()
-combined_updated = combined.dropna(axis = 1, thresh = 500)
+# The ages columns on each dataset don't have the same categories, but it's easy to make them match
+
+print(resignations_tafe['age'].value_counts())
+print(resignations_dete['age'].value_counts())
+
+# To make both match, all ages above 56 will be labeled as "56 or older"
+
+def label_old(string):
+    if string == "56-60" or string == "61 or older":
+        return "56 or older"
+    else:
+        return string
+
+resignations_dete['age'] = resignations_dete['age'].apply(label_old)
+
+# Then, we remove all double spaces from the tafe dataset and replace them with dashes
+
+resignations_tafe['age'] =  resignations_tafe['age'].str.replace('-', "  ").str.replace("  ", "-")
+
 ```
 
 ```{python}
-# Extracting only the digits from the institute_service column
-combined_updated['institute_service'] = combined_updated['institute_service'].astype('str').str.extract(r'(\d+)')
-combined_updated['institute_service'] = combined_updated['institute_service'].astype('float')
-combined_updated['institute_service'].value_counts()
+# Checking that both datasets have the required values
+
+print(resignations_dete.info())
+print('-'*10)
+print(resignations_tafe.info())
 ```
 
 ```{python}
+# Checking if its possible to drop null values
+
+# Most null values are on service length and age
+print(resignations_tafe.isnull().sum().sort_values(ascending = False))
+print(resignations_dete.isnull().sum().sort_values(ascending = False))
+
+# Because of this two columns being directly related to the questions, they won't be filled with the average or mode
+```
+
+```{python}
+# Droping the unecessary attributes before merging the datasets
+
+resignations_tafe.drop(["job_dissatisfaction", "dissatisfaction", "separation_type"], axis = 1, inplace = True)
+resignations_dete.drop(["dete_start_date", "cease_date", "workload", "work_life_balance"
+                       , "employment_conditions", "work_location", "lack_of_job_security",
+                       "lack_of_recognition", "physical_work_environment", "dissatisfaction_with_the_department",
+                       "job_dissatisfaction", "separation_type"], axis = 1, inplace = True)
+
+print(resignations_dete.info())
+print(resignations_tafe.info())
+```
+
+```{python}
+# Joining both datasets
+
+combined_resignations = pd.concat([resignations_dete, resignations_tafe], ignore_index = True)
+combined_resignations.info()
+```
+
+```{python}
+# Inspecting null values on the combined dataset
+
+#There are null values on age and service_length
+combined_resignations.isnull().sum()
+
+# Most of the rows that don't have a service length are the same that don't have the age (53 out of 55)
+combined_resignations[combined_resignations['service_length'].isnull()].isnull().sum()
+
+# Null values are droped given the above fact
+print(combined_resignations.info())
+combined_resignations.dropna(inplace = True)
+print(combined_resignations.info())
+
+```
+
+```{python}
+# Creation of bins on the service length years
+
 def make_intervals(number):
     if pd.isnull(number):
         return np.nan
@@ -280,13 +370,23 @@ def make_intervals(number):
     else:
         return "Veteran"
 
-combined_updated['service_cat'] = combined_updated['institute_service'].apply(make_intervals).copy()
+combined_resignations['service_length_intervals'] = combined_resignations['service_length'].apply(make_intervals)
+combined_resignations['service_length_intervals'].value_counts()
 ```
 
 ```{python}
-combined_updated['dissatisfied'].value_counts(dropna = False)
-combined_updated['dissatisfied'] = combined_updated['dissatisfied'].fillna(False)
-combined_updated['dissatisfied'].value_counts(dropna = False)
+combined_resignations['dissatisfied'].value_counts(dropna = False)
+```
+
+```{python}
+boli = combined_resignations['service_length_intervals'] == "New"
+combined_resignations[boli]['dissatisfied'].mean()
+```
+
+```{python}
+dissatisfied_by_service_lengt = combined_resignations.pivot_table(index = 'service_length_intervals',values = 'dissatisfied', aggfunc='mean')
+
+
 ```
 
 ```{python}
